@@ -28,6 +28,7 @@ namespace BookToneApi.Controllers
                     BookTitle = r.BookTitle,
                     BookAuthor = r.BookAuthor,
                     Feedback = r.Feedback,
+                    Tone = r.Tone,
                     CreatedAt = r.CreatedAt
                 })
                 .ToListAsync();
@@ -52,42 +53,16 @@ namespace BookToneApi.Controllers
                 BookTitle = recommendation.BookTitle,
                 BookAuthor = recommendation.BookAuthor,
                 Feedback = recommendation.Feedback,
+                Tone = recommendation.Tone,
                 CreatedAt = recommendation.CreatedAt
             };
 
             return Ok(responseDto);
         }
 
-        // POST: api/BookToneRecommendations
-        [HttpPost]
-        public async Task<ActionResult<BookToneRecommendationResponseDto>> CreateBookToneRecommendation(CreateBookToneRecommendationDto createDto)
-        {
-            var recommendation = new BookToneRecommendation
-            {
-                BookTitle = createDto.BookTitle,
-                BookAuthor = createDto.BookAuthor,
-                Feedback = createDto.Feedback,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            _context.BookToneRecommendations.Add(recommendation);
-            await _context.SaveChangesAsync();
-
-            var responseDto = new BookToneRecommendationResponseDto
-            {
-                Id = recommendation.Id,
-                BookTitle = recommendation.BookTitle,
-                BookAuthor = recommendation.BookAuthor,
-                Feedback = recommendation.Feedback,
-                CreatedAt = recommendation.CreatedAt
-            };
-
-            return CreatedAtAction(nameof(GetBookToneRecommendation), new { id = recommendation.Id }, responseDto);
-        }
-
         // PUT: api/BookToneRecommendations/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateBookToneRecommendation(int id, CreateBookToneRecommendationDto updateDto)
+        public async Task<IActionResult> UpdateBookToneRecommendation(int id, UpdateBookToneRecommendationDto updateDto)
         {
             var recommendation = await _context.BookToneRecommendations.FindAsync(id);
 
@@ -99,6 +74,7 @@ namespace BookToneApi.Controllers
             recommendation.BookTitle = updateDto.BookTitle;
             recommendation.BookAuthor = updateDto.BookAuthor;
             recommendation.Feedback = updateDto.Feedback;
+            recommendation.Tone = updateDto.Tone;
 
             try
             {

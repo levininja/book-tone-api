@@ -23,6 +23,7 @@ namespace BookToneApi.Data
                 entity.Property(e => e.BookTitle).IsRequired().HasMaxLength(500);
                 entity.Property(e => e.BookAuthor).IsRequired().HasMaxLength(200);
                 entity.Property(e => e.Feedback).IsRequired();
+                entity.Property(e => e.Tone).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             });
         }

@@ -15,7 +15,12 @@ namespace BookToneApi.Models
         public string BookAuthor { get; set; } = string.Empty;
         
         [Required]
+        [Range(-1, 1)]
         public int Feedback { get; set; }
+        
+        [Required]
+        [MaxLength(50)]
+        public string Tone { get; set; } = string.Empty;
         
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
