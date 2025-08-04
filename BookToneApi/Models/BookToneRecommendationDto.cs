@@ -29,7 +29,7 @@ namespace BookToneApi.Models
         public int Feedback { get; set; }
         
         [Required]
-        [MaxLength(100)]
+        [MaxLength(50)]
         public string Tone { get; set; } = string.Empty;
     }
 } 
