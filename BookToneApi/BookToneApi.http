@@ -1,0 +1,6 @@
+@BookToneApi_HostAddress = http://localhost:5058
+
+GET {{BookToneApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
