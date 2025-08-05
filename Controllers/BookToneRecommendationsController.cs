@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BookToneApi.Data;
 using BookToneApi.Models;
+using BookToneApi.Services;
 
 namespace BookToneApi.Controllers
 {
@@ -10,30 +11,52 @@ namespace BookToneApi.Controllers
     public class BookToneRecommendationsController : ControllerBase
     {
         private readonly BookToneDbContext _context;
+        private readonly IRecommenderService _recommenderService;
 
-        public BookToneRecommendationsController(BookToneDbContext context)
+        public BookToneRecommendationsController(BookToneDbContext context, IRecommenderService recommenderService)
         {
             _context = context;
+            _recommenderService = recommenderService;
         }
 
         // GET: api/BookToneRecommendations
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<BookToneRecommendationResponseDto>>> GetBookToneRecommendations()
+        public async Task<ActionResult<BookToneRecommendationResponseDto>> GetBookToneRecommendation([FromQuery] BookToneRecommendationRequestDto request)
         {
-            var recommendations = await _context.BookToneRecommendations
-                .OrderByDescending(r => r.CreatedAt)
-                .Select(r => new BookToneRecommendationResponseDto
-                {
-                    Id = r.Id,
-                    BookTitle = r.BookTitle,
-                    BookAuthor = r.BookAuthor,
-                    Feedback = r.Feedback,
-                    Tone = r.Tone,
-                    CreatedAt = r.CreatedAt
-                })
-                .ToListAsync();
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
 
-            return Ok(recommendations);
+            try
+            {
+                var recommendation = await _recommenderService.GetRecommendationAsync(
+                    request.BookTitle, 
+                    request.BookAuthor, 
+                    request.Genres);
+
+                // Save the recommendation to the database
+                var bookToneRecommendation = new BookToneRecommendation
+                {
+                    BookTitle = recommendation.BookTitle,
+                    BookAuthor = recommendation.BookAuthor,
+                    Feedback = 0, // Default neutral feedback
+                    Tone = recommendation.Tones.FirstOrDefault() ?? "Realistic", // Use first tone or default to Realistic
+                    CreatedAt = recommendation.CreatedAt
+                };
+
+                _context.BookToneRecommendations.Add(bookToneRecommendation);
+                await _context.SaveChangesAsync();
+
+                // Update the response with the actual ID from the database
+                recommendation.Id = bookToneRecommendation.Id;
+
+                return Ok(recommendation);
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, "An error occurred while generating the recommendation.");
+            }
         }
 
         // GET: api/BookToneRecommendations/5
@@ -52,8 +75,7 @@ namespace BookToneApi.Controllers
                 Id = recommendation.Id,
                 BookTitle = recommendation.BookTitle,
                 BookAuthor = recommendation.BookAuthor,
-                Feedback = recommendation.Feedback,
-                Tone = recommendation.Tone,
+                Tones = new List<string> { recommendation.Tone },
                 CreatedAt = recommendation.CreatedAt
             };
 
@@ -64,6 +86,11 @@ namespace BookToneApi.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateBookToneRecommendation(int id, UpdateBookToneRecommendationDto updateDto)
         {
+            if (id != updateDto.Id)
+            {
+                return BadRequest("ID mismatch");
+            }
+
             var recommendation = await _context.BookToneRecommendations.FindAsync(id);
 
             if (recommendation == null)
@@ -71,8 +98,6 @@ namespace BookToneApi.Controllers
                 return NotFound();
             }
 
-            recommendation.BookTitle = updateDto.BookTitle;
-            recommendation.BookAuthor = updateDto.BookAuthor;
             recommendation.Feedback = updateDto.Feedback;
             recommendation.Tone = updateDto.Tone;
 
@@ -91,22 +116,6 @@ namespace BookToneApi.Controllers
                     throw;
                 }
             }
-
-            return NoContent();
-        }
-
-        // DELETE: api/BookToneRecommendations/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteBookToneRecommendation(int id)
-        {
-            var recommendation = await _context.BookToneRecommendations.FindAsync(id);
-            if (recommendation == null)
-            {
-                return NotFound();
-            }
-
-            _context.BookToneRecommendations.Remove(recommendation);
-            await _context.SaveChangesAsync();
 
             return NoContent();
         }

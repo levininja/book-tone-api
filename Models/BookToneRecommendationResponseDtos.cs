@@ -7,15 +7,12 @@ namespace BookToneApi.Models
         public int Id { get; set; }
         public string BookTitle { get; set; } = string.Empty;
         public string BookAuthor { get; set; } = string.Empty;
-        public int Feedback { get; set; }
-        public string Tone { get; set; } = string.Empty;
+        public List<string> Tones { get; set; } = new List<string>();
         public DateTime CreatedAt { get; set; }
     }
 
-    public class UpdateBookToneRecommendationDto
+    public class BookToneRecommendationRequestDto
     {
-        public int? Id { get; set; }
-        
         [Required]
         [MaxLength(500)]
         public string BookTitle { get; set; } = string.Empty;
@@ -23,6 +20,15 @@ namespace BookToneApi.Models
         [Required]
         [MaxLength(200)]
         public string BookAuthor { get; set; } = string.Empty;
+        
+        [Required]
+        public List<string> Genres { get; set; } = new List<string>();
+    }
+
+    public class UpdateBookToneRecommendationDto
+    {
+        [Required]
+        public int Id { get; set; }
         
         [Required]
         [Range(-1, 1)]
