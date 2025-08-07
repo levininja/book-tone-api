@@ -15,4 +15,16 @@ namespace BookToneApi.Dtos
         [MaxLength(50)]
         public string Tone { get; set; } = string.Empty;
     }
+
+    public class BookToneRecommendationItemDto
+    {
+        public int RecommendationId { get; set; }
+        public int BookId { get; set; }
+        public string Tone { get; set; } = string.Empty;
+    }
+
+    public class BookToneRecommendationsResponseDto
+    {
+        public List<BookToneRecommendationItemDto> Recommendations { get; set; } = new();
+    }
 } 

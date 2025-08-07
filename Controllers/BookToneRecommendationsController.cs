@@ -15,17 +15,20 @@ namespace BookToneApi.Controllers
         private readonly BookToneDbContext _context;
         private readonly IRecommenderService _recommenderService;
         private readonly IBookDataService _bookDataService;
+        private readonly IBatchProcessingService _batchProcessingService;
         private readonly ILogger<BookToneRecommendationsController> _logger;
 
         public BookToneRecommendationsController(
             BookToneDbContext context, 
             IRecommenderService recommenderService,
             IBookDataService bookDataService,
+            IBatchProcessingService batchProcessingService,
             ILogger<BookToneRecommendationsController> logger)
         {
             _context = context;
             _recommenderService = recommenderService;
             _bookDataService = bookDataService;
+            _batchProcessingService = batchProcessingService;
             _logger = logger;
         }
 
@@ -38,129 +41,118 @@ namespace BookToneApi.Controllers
                 return BadRequest(ModelState);
             }
 
-            int processedCount = 0;
-            int failedCount = 0;
-            int totalCount = bookIds.Count;
-
-            foreach (int bookId in bookIds)
+            if (bookIds == null || !bookIds.Any())
             {
-                try
-                {
-                    // Log start
-                    BatchProcessingLog startLog = new BatchProcessingLog
-                    {
-                        BookId = bookId,
-                        Status = "Started",
-                        Message = "Beginning request to generate tone recommendations",
-                        CreatedAt = DateTime.UtcNow
-                    };
-                    _context.BatchProcessingLogs.Add(startLog);
-                    await _context.SaveChangesAsync();
-
-                    // Make call to recommendation engine
-                    List<string> recommendations = await _recommenderService.GetRecommendationsAsync(bookId);
-
-                    // Log completion
-                    BatchProcessingLog completionLog = new BatchProcessingLog
-                    {
-                        BookId = bookId,
-                        Status = "Completed",
-                        Message = $"Successfully generated {recommendations.Count} recommendations",
-                        CreatedAt = DateTime.UtcNow,
-                        CompletedAt = DateTime.UtcNow
-                    };
-                    _context.BatchProcessingLogs.Add(completionLog);
-
-                    // Save recommendations
-                    List<BookToneRecommendation> bookRecommendations = recommendations.Select(tone => new BookToneRecommendation
-                    {
-                        BookId = bookId,
-                        Feedback = 0, // Default neutral feedback
-                        Tone = tone,
-                        CreatedAt = DateTime.UtcNow
-                    }).ToList();
-
-                    _context.BookToneRecommendations.AddRange(bookRecommendations);
-                    await _context.SaveChangesAsync();
-
-                    processedCount++;
-                    _logger.LogInformation("Successfully processed book {BookId}. Progress: {Processed}/{Total}", 
-                        bookId, processedCount, totalCount);
-                }
-                catch (Exception ex)
-                {
-                    failedCount++;
-                    _logger.LogError(ex, "Failed to process book {BookId}. Progress: {Processed}/{Total}, Failed: {Failed}", 
-                        bookId, processedCount, totalCount, failedCount);
-
-                    // Log error to database
-                    try
-                    {
-                        ErrorLog errorLog = new ErrorLog
-                        {
-                            Source = "BatchProcessing",
-                            ErrorType = ex.GetType().Name,
-                            ErrorMessage = ex.Message,
-                            StackTrace = ex.StackTrace,
-                            BookId = bookId,
-                            CreatedAt = DateTime.UtcNow
-                        };
-                        _context.ErrorLogs.Add(errorLog);
-                        await _context.SaveChangesAsync();
-                    }
-                    catch (Exception logEx)
-                    {
-                        _logger.LogError(logEx, "Failed to log error to database for book {BookId}", bookId);
-                    }
-                }
+                return BadRequest("At least one book ID is required");
             }
 
-            _logger.LogInformation("Batch processing completed. Total: {Total}, Processed: {Processed}, Failed: {Failed}", 
-                totalCount, processedCount, failedCount);
+            try
+            {
+                // Start the batch processing job asynchronously
+                string batchId = await _batchProcessingService.StartBatchProcessingAsync(bookIds);
+                
+                _logger.LogInformation("Started batch processing job {BatchId} for {BookCount} books", 
+                    batchId, bookIds.Count);
 
-            return Ok(new { 
-                TotalProcessed = processedCount, 
-                TotalFailed = failedCount, 
-                TotalRequested = totalCount 
-            });
+                return Accepted(new { 
+                    BatchId = batchId
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to start batch processing job");
+                return StatusCode(500, new { Error = "Failed to start batch processing job" });
+            }
+        }
+
+        // GET: api/BookToneRecommendations/batch/{batchId}/status
+        [HttpGet("batch/{batchId}/status")]
+        public async Task<IActionResult> GetBatchStatus(string batchId)
+        {
+            try
+            {
+                BatchProcessingStatus status = await _batchProcessingService.GetBatchStatusAsync(batchId);
+                
+                if (status.Status == "NotFound")
+                {
+                    return NotFound(new { Error = "Batch job not found" });
+                }
+
+                return Ok(status);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to get batch status for {BatchId}", batchId);
+                return StatusCode(500, new { Error = "Failed to get batch status" });
+            }
+        }
+
+        // GET: api/BookToneRecommendations/batch/{batchId}/logs
+        [HttpGet("batch/{batchId}/logs")]
+        public async Task<IActionResult> GetBatchLogs(string batchId)
+        {
+            try
+            {
+                List<BatchProcessingLog> logs = await _batchProcessingService.GetBatchLogsAsync(batchId);
+                return Ok(logs);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to get batch logs for {BatchId}", batchId);
+                return StatusCode(500, new { Error = "Failed to get batch logs" });
+            }
+        }
+
+        // GET: api/BookToneRecommendations/batch/{batchId}/metrics
+        [HttpGet("batch/{batchId}/metrics")]
+        public async Task<IActionResult> GetBatchMetrics(string batchId)
+        {
+            try
+            {
+                List<ResourceMetrics> metrics = await _context.ResourceMetrics
+                    .Where(m => m.BatchId == batchId)
+                    .OrderBy(m => m.CreatedAt)
+                    .ToListAsync();
+                
+                return Ok(metrics);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to get batch metrics for {BatchId}", batchId);
+                return StatusCode(500, new { Error = "Failed to get batch metrics" });
+            }
         }
 
         // GET: api/BookToneRecommendations/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<BookToneRecommendationResponseDto>> GetBookToneRecommendation(int id)
+        public async Task<ActionResult<BookToneRecommendationsResponseDto>> GetBookToneRecommendation(int id)
         {
-            BookToneRecommendation? recommendation = await _context.BookToneRecommendations.FindAsync(id);
+            List<BookToneRecommendation> recommendations = await _context.BookToneRecommendations
+                .Where(r => r.BookId == id)
+                .ToListAsync();
 
-            if (recommendation == null)
+            if (!recommendations.Any())
             {
                 return NotFound();
             }
 
-            // Get book data from book-data-api
-            BookDto? bookData = await _bookDataService.GetBookByIdAsync(recommendation.BookId);
-            
-            BookToneRecommendationResponseDto responseDto = new BookToneRecommendationResponseDto
+            BookToneRecommendationsResponseDto response = new BookToneRecommendationsResponseDto
             {
-                Id = recommendation.Id,
-                BookTitle = bookData?.Title ?? $"Book {recommendation.BookId}",
-                AuthorFirstName = bookData?.AuthorFirstName ?? "Unknown",
-                AuthorLastName = bookData?.AuthorLastName ?? "",
-                Tones = new List<string> { recommendation.Tone },
-                CreatedAt = recommendation.CreatedAt
+                Recommendations = recommendations.Select(r => new BookToneRecommendationItemDto
+                {
+                    RecommendationId = r.Id,
+                    BookId = r.BookId,
+                    Tone = FormatTone(r.Tone)
+                }).ToList()
             };
 
-            return Ok(responseDto);
+            return Ok(response);
         }
 
         // PUT: api/BookToneRecommendations/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateBookToneRecommendation(int id, UpdateBookToneRecommendationDto updateDto)
+        public async Task<IActionResult> UpdateBookToneRecommendation(int id, [FromBody] int feedback)
         {
-            if (id != updateDto.Id)
-            {
-                return BadRequest("ID mismatch");
-            }
-
             BookToneRecommendation? recommendation = await _context.BookToneRecommendations.FindAsync(id);
 
             if (recommendation == null)
@@ -168,8 +160,12 @@ namespace BookToneApi.Controllers
                 return NotFound();
             }
 
-            recommendation.Feedback = updateDto.Feedback;
-            recommendation.Tone = updateDto.Tone;
+            if (feedback < -1 || feedback > 1)
+            {
+                return BadRequest("Feedback must be between -1 and 1");
+            }
+
+            recommendation.Feedback = feedback;
 
             try
             {
@@ -193,6 +189,36 @@ namespace BookToneApi.Controllers
         private bool BookToneRecommendationExists(int id)
         {
             return _context.BookToneRecommendations.Any(e => e.Id == id);
+        }
+
+        private string FormatTone(string tone)
+        {
+            if (string.IsNullOrEmpty(tone))
+                return tone;
+
+            string normalizedTone = tone.Trim();
+            
+            // Apply specific formatting rules (case insensitive)
+            if (string.Equals(normalizedTone, "Gut Wrenching", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(normalizedTone, "Gut-wrenching", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Gut-wrenching";
+            }
+            
+            if (string.Equals(normalizedTone, "Hard Boiled", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(normalizedTone, "Hard-boiled", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Hard-boiled";
+            }
+            
+            if (string.Equals(normalizedTone, "Heart Warming", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(normalizedTone, "Heart-Warming", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Heartwarming";
+            }
+            
+            // For all other tones, just capitalize the first letter of each word
+            return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(normalizedTone.ToLower());
         }
     }
 } 

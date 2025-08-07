@@ -11,8 +11,11 @@ namespace BookToneApi.Data
         }
 
         public DbSet<BookToneRecommendation> BookToneRecommendations { get; set; }
+        public DbSet<BatchJob> BatchJobs { get; set; }
+        public DbSet<BatchJobDetail> BatchJobDetails { get; set; }
         public DbSet<BatchProcessingLog> BatchProcessingLogs { get; set; }
         public DbSet<ErrorLog> ErrorLogs { get; set; }
+        public DbSet<ResourceMetrics> ResourceMetrics { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

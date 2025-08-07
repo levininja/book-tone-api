@@ -3,6 +3,7 @@ using System;
 using BookToneApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BookToneApi.Migrations
 {
     [DbContext(typeof(BookToneDbContext))]
-    partial class BookToneDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250807174459_AddBatchJobTables")]
+    partial class AddBatchJobTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -199,42 +202,6 @@ namespace BookToneApi.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("ErrorLogs");
-                });
-
-            modelBuilder.Entity("BookToneApi.Models.ResourceMetrics", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<long>("AvailableMemoryBytes")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("BatchId")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<int?>("BookId")
-                        .HasColumnType("integer");
-
-                    b.Property<double>("CpuUsagePercent")
-                        .HasColumnType("double precision");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long>("MemoryUsageBytes")
-                        .HasColumnType("bigint");
-
-                    b.Property<double>("MemoryUsagePercent")
-                        .HasColumnType("double precision");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ResourceMetrics");
                 });
 
             modelBuilder.Entity("BookToneApi.Models.BatchProcessingLog", b =>

@@ -27,6 +27,13 @@ builder.Services.AddScoped<IRecommenderService, RecommenderService>();
 // Add book data service
 builder.Services.AddScoped<IBookDataService, BookDataService>();
 
+// Add resource monitoring service
+builder.Services.AddScoped<IResourceMonitorService, ResourceMonitorService>();
+
+// Add batch processing service
+builder.Services.AddScoped<IBatchProcessingService, BatchProcessingService>();
+builder.Services.AddHostedService<BatchProcessingService>();
+
 WebApplication app = builder.Build();
 
 // Configure the HTTP request pipeline.
