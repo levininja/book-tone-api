@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace BookToneApi.Models
 {
-    public class BookToneRecommendation
+    public class BatchProcessingLog
     {
         public int Id { get; set; }
         
@@ -10,13 +10,14 @@ namespace BookToneApi.Models
         public int BookId { get; set; }
         
         [Required]
-        [Range(-1, 1)]
-        public int Feedback { get; set; }
-        
-        [Required]
         [MaxLength(50)]
-        public string Tone { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty; // "Started", "Completed", "Failed"
+        
+        [MaxLength(1000)]
+        public string? Message { get; set; }
         
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        
+        public DateTime? CompletedAt { get; set; }
     }
 } 

@@ -1,9 +1,10 @@
 using BookToneApi.Models;
+using BookToneApi.Dtos;
 
 namespace BookToneApi.Services
 {
     public interface IRecommenderService
     {
-        Task<BookToneRecommendationResponseDto> GetRecommendationAsync(string bookTitle, string bookAuthor, List<string> genres);
+        Task<List<string>> GetRecommendationsAsync(int bookId);
     }
 } 

@@ -1,13 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace BookToneApi.Models
+namespace BookToneApi.Dtos
 {
-    public class BookToneRecommendation
+    public class UpdateBookToneRecommendationDto
     {
-        public int Id { get; set; }
-        
         [Required]
-        public int BookId { get; set; }
+        public int Id { get; set; }
         
         [Required]
         [Range(-1, 1)]
@@ -16,7 +14,5 @@ namespace BookToneApi.Models
         [Required]
         [MaxLength(50)]
         public string Tone { get; set; } = string.Empty;
-        
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 } 
