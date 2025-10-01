@@ -6,7 +6,7 @@ namespace BookToneApi.Dtos
         public string BookTitle { get; set; } = string.Empty;
         public string AuthorFirstName { get; set; } = string.Empty;
         public string AuthorLastName { get; set; } = string.Empty;
-        public List<string> Tones { get; set; } = new List<string>();
+        public string Tone { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
     }
 } 

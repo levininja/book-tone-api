@@ -29,7 +29,7 @@ namespace BookToneApi.Services
             string batchId = Guid.NewGuid().ToString("N");
             
             using IServiceScope scope = _serviceProvider.CreateScope();
-            BookToneDbContext context = scope.ServiceProvider.GetRequiredService<BookToneDbContext>();
+            ApplicationDbContext context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             
             BatchJob batchJob = new BatchJob
             {
@@ -72,7 +72,7 @@ namespace BookToneApi.Services
 
             // Check database for completed jobs
             using IServiceScope scope = _serviceProvider.CreateScope();
-            BookToneDbContext context = scope.ServiceProvider.GetRequiredService<BookToneDbContext>();
+            ApplicationDbContext context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             
             BatchJob? batchJob = await context.BatchJobs
                 .FirstOrDefaultAsync(j => j.BatchId == batchId);
@@ -96,7 +96,7 @@ namespace BookToneApi.Services
         public async Task<List<BatchProcessingLog>> GetBatchLogsAsync(string batchId)
         {
             using IServiceScope scope = _serviceProvider.CreateScope();
-            BookToneDbContext context = scope.ServiceProvider.GetRequiredService<BookToneDbContext>();
+            ApplicationDbContext context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             
             return await context.BatchProcessingLogs
                 .Where(l => l.BatchId == batchId)
@@ -178,13 +178,23 @@ namespace BookToneApi.Services
                 await _semaphore.WaitAsync(cancellationToken);
                 
                 using IServiceScope scope = _serviceProvider.CreateScope();
-                BookToneDbContext context = scope.ServiceProvider.GetRequiredService<BookToneDbContext>();
+                ApplicationDbContext context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 IRecommenderService recommenderService = scope.ServiceProvider.GetRequiredService<IRecommenderService>();
 
+                // Load the batch job from the database so EF can track it
+                BatchJob? dbBatchJob = await context.BatchJobs
+                    .FirstOrDefaultAsync(b => b.BatchId == batchJob.BatchId, cancellationToken);
+                
+                if (dbBatchJob == null)
+                {
+                    _logger.LogError("Batch job {BatchId} not found in database", batchJob.BatchId);
+                    return;
+                }
+
                 // Update the job status for the database
-                batchJob.Status = "Processing";
-                batchJob.StartedAt = DateTime.UtcNow;
-                await context.SaveChangesAsync();
+                dbBatchJob.Status = "Processing";
+                dbBatchJob.StartedAt = DateTime.UtcNow;
+                await context.SaveChangesAsync(cancellationToken);
 
                 // Get the list of books to process (you'll need to store this or pass it differently)
                 // For now, we'll process a fixed number of books as an example
@@ -201,37 +211,37 @@ namespace BookToneApi.Services
                         using (IServiceScope resourceScope = _serviceProvider.CreateScope())
                         {
                             IResourceMonitorService resourceMonitor = resourceScope.ServiceProvider.GetRequiredService<IResourceMonitorService>();
-                            await resourceMonitor.LogMetricsAsync(batchJob.BatchId, bookId);
+                            await resourceMonitor.LogMetricsAsync(dbBatchJob.BatchId, bookId);
                         }
                         
                         // Process the book tone recommendation generation
-                        await ProcessSingleBookAsync(context, recommenderService, batchJob.BatchId, bookId);
+                        await ProcessSingleBookAsync(context, recommenderService, dbBatchJob.BatchId, bookId);
                         
-                        batchJob.ProcessedBooks++;
+                        dbBatchJob.ProcessedBooks++;
                         status.ProcessedBooks++;
                         
                         // Save progress after every book since each can take a long time
-                        await context.SaveChangesAsync();
+                        await context.SaveChangesAsync(cancellationToken);
                         
                         // Log resource metrics after processing
                         using (IServiceScope resourceScope = _serviceProvider.CreateScope())
                         {
                             IResourceMonitorService resourceMonitor = resourceScope.ServiceProvider.GetRequiredService<IResourceMonitorService>();
-                            await resourceMonitor.LogMetricsAsync(batchJob.BatchId, bookId);
+                            await resourceMonitor.LogMetricsAsync(dbBatchJob.BatchId, bookId);
                         }
                         
                         _logger.LogInformation("Batch {BatchId}: Processed {Processed}/{Total} books", 
-                            batchJob.BatchId, batchJob.ProcessedBooks, batchJob.TotalBooks);
+                            dbBatchJob.BatchId, dbBatchJob.ProcessedBooks, dbBatchJob.TotalBooks);
                     }
                     catch (Exception ex)
                     {
-                        batchJob.FailedBooks++;
+                        dbBatchJob.FailedBooks++;
                         status.FailedBooks++;
                         
                         _logger.LogError(ex, "Failed to process book {BookId} in batch {BatchId}", 
-                            bookId, batchJob.BatchId);
+                            bookId, dbBatchJob.BatchId);
                         
-                        await LogErrorAsync(context, batchJob.BatchId, bookId, ex);
+                        await LogErrorAsync(context, dbBatchJob.BatchId, bookId, ex);
                     }
                 }
                 
@@ -240,19 +250,16 @@ namespace BookToneApi.Services
                 status.CompletedAt = DateTime.UtcNow;
 
                 // Update the job status for the database
-                batchJob.Status = "Completed";
-                batchJob.CompletedAt = DateTime.UtcNow;
+                dbBatchJob.Status = "Completed";
+                dbBatchJob.CompletedAt = DateTime.UtcNow;
 
-                await context.SaveChangesAsync();
+                await context.SaveChangesAsync(cancellationToken);
                 
                 _logger.LogInformation("Completed batch job {BatchId}: {Processed}/{Total} books processed, {Failed} failed", 
-                    batchJob.BatchId, batchJob.ProcessedBooks, batchJob.TotalBooks, batchJob.FailedBooks);
+                    dbBatchJob.BatchId, dbBatchJob.ProcessedBooks, dbBatchJob.TotalBooks, dbBatchJob.FailedBooks);
             }
             catch (Exception ex)
             {
-                batchJob.Status = "Failed";
-                batchJob.ErrorMessage = ex.Message;
-                batchJob.CompletedAt = DateTime.UtcNow;
                 status.Status = "Failed";
                 status.ErrorMessage = ex.Message;
                 status.CompletedAt = DateTime.UtcNow;
@@ -260,8 +267,19 @@ namespace BookToneApi.Services
                 _logger.LogError(ex, "Batch job {BatchId} failed", batchJob.BatchId);
                 
                 using IServiceScope scope = _serviceProvider.CreateScope();
-                BookToneDbContext context = scope.ServiceProvider.GetRequiredService<BookToneDbContext>();
-                await context.SaveChangesAsync();
+                ApplicationDbContext context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                
+                // Load the batch job from database to update its status
+                BatchJob? dbBatchJob = await context.BatchJobs
+                    .FirstOrDefaultAsync(b => b.BatchId == batchJob.BatchId);
+                
+                if (dbBatchJob != null)
+                {
+                    dbBatchJob.Status = "Failed";
+                    dbBatchJob.ErrorMessage = ex.Message;
+                    dbBatchJob.CompletedAt = DateTime.UtcNow;
+                    await context.SaveChangesAsync();
+                }
             }
             finally
             {
@@ -275,7 +293,7 @@ namespace BookToneApi.Services
         /// </summary>
         /// <returns>A task representing the asynchronous operation.</returns>
         private async Task ProcessSingleBookAsync(
-            BookToneDbContext context, 
+            ApplicationDbContext context, 
             IRecommenderService recommenderService, 
             string batchId, 
             int bookId)
@@ -318,7 +336,7 @@ namespace BookToneApi.Services
             context.BookToneRecommendations.AddRange(bookRecommendations);
         }
 
-        private Task LogErrorAsync(BookToneDbContext context, string batchId, int bookId, Exception ex)
+        private Task LogErrorAsync(ApplicationDbContext context, string batchId, int bookId, Exception ex)
         {
             ErrorLog errorLog = new ErrorLog
             {
@@ -333,7 +351,7 @@ namespace BookToneApi.Services
             return Task.CompletedTask;
         }
 
-        private async Task<List<int>> GetBookIdsForBatchAsync(BookToneDbContext context, string batchId)
+        private async Task<List<int>> GetBookIdsForBatchAsync(ApplicationDbContext context, string batchId)
         {
             return await context.BatchJobDetails
                 .Where(d => d.BatchId == batchId)

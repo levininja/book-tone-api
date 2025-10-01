@@ -102,7 +102,7 @@ namespace BookToneApi.Services
                 metrics.BookId = bookId;
 
                 using IServiceScope scope = _serviceProvider.CreateScope();
-                BookToneDbContext context = scope.ServiceProvider.GetRequiredService<BookToneDbContext>();
+                ApplicationDbContext context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 
                 context.ResourceMetrics.Add(metrics);
                 await context.SaveChangesAsync();

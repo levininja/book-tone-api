@@ -4,9 +4,9 @@ using BookDataApi.Shared.Models;
 
 namespace BookToneApi.Data
 {
-    public class BookToneDbContext : DbContext
+    public class ApplicationDbContext : DbContext
     {
-        public BookToneDbContext(DbContextOptions<BookToneDbContext> options)
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
         {
         }
@@ -29,6 +29,7 @@ namespace BookToneApi.Data
                 entity.Property(e => e.BookId).IsRequired();
                 entity.Property(e => e.Feedback).IsRequired();
                 entity.Property(e => e.Tone).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.ToneId).IsRequired(false); // Nullable
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             });
 

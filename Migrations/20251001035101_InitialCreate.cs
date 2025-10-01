@@ -49,6 +49,23 @@ namespace BookToneApi.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "BookToneRecommendations",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    BookId = table.Column<int>(type: "integer", nullable: false),
+                    Tone = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    ToneId = table.Column<int>(type: "integer", nullable: true),
+                    Feedback = table.Column<int>(type: "integer", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BookToneRecommendations", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ErrorLogs",
                 columns: table => new
                 {
@@ -123,6 +140,9 @@ namespace BookToneApi.Migrations
 
             migrationBuilder.DropTable(
                 name: "BatchProcessingLogs");
+
+            migrationBuilder.DropTable(
+                name: "BookToneRecommendations");
 
             migrationBuilder.DropTable(
                 name: "ErrorLogs");

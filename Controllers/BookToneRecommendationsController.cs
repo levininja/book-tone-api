@@ -10,17 +10,17 @@ using BookDataApi.Shared.Dtos;
 namespace BookToneApi.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/book-tone-recommendations")]
     public class BookToneRecommendationsController : ControllerBase
     {
-        private readonly BookToneDbContext _context;
+        private readonly ApplicationDbContext _context;
         private readonly IRecommenderService _recommenderService;
         private readonly IBookDataService _bookDataService;
         private readonly IBatchProcessingService _batchProcessingService;
         private readonly ILogger<BookToneRecommendationsController> _logger;
 
         public BookToneRecommendationsController(
-            BookToneDbContext context, 
+            ApplicationDbContext context, 
             IRecommenderService recommenderService,
             IBookDataService bookDataService,
             IBatchProcessingService batchProcessingService,
@@ -33,7 +33,7 @@ namespace BookToneApi.Controllers
             _logger = logger;
         }
 
-        // POST: api/BookToneRecommendations
+        // POST: api/book-tone-recommendations
         [HttpPost]
         public async Task<IActionResult> GenerateBookToneRecommendations([FromQuery] List<int> bookIds)
         {
@@ -66,7 +66,7 @@ namespace BookToneApi.Controllers
             }
         }
 
-        // GET: api/BookToneRecommendations/batch/{batchId}/status
+        // GET: api/book-tone-recommendations/batch/{batchId}/status
         [HttpGet("batch/{batchId}/status")]
         public async Task<IActionResult> GetBatchStatus(string batchId)
         {
@@ -88,7 +88,7 @@ namespace BookToneApi.Controllers
             }
         }
 
-        // GET: api/BookToneRecommendations/batch/{batchId}/logs
+        // GET: api/book-tone-recommendations/batch/{batchId}/logs
         [HttpGet("batch/{batchId}/logs")]
         public async Task<IActionResult> GetBatchLogs(string batchId)
         {
@@ -104,7 +104,7 @@ namespace BookToneApi.Controllers
             }
         }
 
-        // GET: api/BookToneRecommendations/batch/{batchId}/metrics
+        // GET: api/book-tone-recommendations/batch/{batchId}/metrics
         [HttpGet("batch/{batchId}/metrics")]
         public async Task<IActionResult> GetBatchMetrics(string batchId)
         {
@@ -124,7 +124,7 @@ namespace BookToneApi.Controllers
             }
         }
 
-        // GET: api/BookToneRecommendations/{id}
+        // GET: api/book-tone-recommendations/{id}
         [HttpGet("{id}")]
         public async Task<ActionResult<BookToneRecommendationsResponseDto>> GetBookToneRecommendation(int id)
         {
@@ -141,7 +141,7 @@ namespace BookToneApi.Controllers
             {
                 Recommendations = recommendations.Select(r => new BookToneRecommendationItemDto
                 {
-                    RecommendationId = r.Id,
+                    Id = r.Id,
                     BookId = r.BookId,
                     Tone = FormatTone(r.Tone)
                 }).ToList()
@@ -150,7 +150,7 @@ namespace BookToneApi.Controllers
             return Ok(response);
         }
 
-        // PUT: api/BookToneRecommendations/{id}
+        // PUT: api/book-tone-recommendations/{id}
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateBookToneRecommendation(int id, [FromBody] int feedback)
         {
