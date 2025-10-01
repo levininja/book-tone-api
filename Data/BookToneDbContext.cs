@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using BookToneApi.Models;
+using BookDataApi.Shared.Models;
 
 namespace BookToneApi.Data
 {

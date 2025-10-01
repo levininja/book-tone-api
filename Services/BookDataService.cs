@@ -1,5 +1,5 @@
 using System.Text.Json;
-using BookDataApi.Dtos;
+using BookDataApi.Shared.Dtos;
 
 namespace BookToneApi.Services
 {

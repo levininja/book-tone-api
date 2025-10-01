@@ -5,6 +5,6 @@ namespace BookToneApi.Services
 {
     public interface IRecommenderService
     {
-        Task<List<string>> GetRecommendationsAsync(int bookId);
+        Task<List<string>> GenerateBookToneRecommendationsAsync(int bookId);
     }
 } 

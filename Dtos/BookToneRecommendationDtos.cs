@@ -23,8 +23,5 @@ namespace BookToneApi.Dtos
         public string Tone { get; set; } = string.Empty;
     }
 
-    public class BookToneRecommendationsResponseDto
-    {
-        public List<BookToneRecommendationItemDto> Recommendations { get; set; } = new();
-    }
+
 } 

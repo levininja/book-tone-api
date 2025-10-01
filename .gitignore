@@ -403,3 +403,7 @@ AIModels/*.safetensors
 
 # Configuration files with secrets
 appsettings.Development.json 
+
+# specstory
+.cursorindexingignore
+.specstory/

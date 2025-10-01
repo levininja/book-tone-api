@@ -9,31 +9,34 @@ namespace BookToneApi.Services
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger<RecommenderService> _logger;
-        private readonly IHardcoverApiService _hardcoverApiService;
         private readonly string _ollamaUrl;
 
-        public RecommenderService(ILogger<RecommenderService> logger, HttpClient httpClient, IHardcoverApiService hardcoverApiService)
+        public RecommenderService(ILogger<RecommenderService> logger, HttpClient httpClient)
         {
             _logger = logger;
             _httpClient = httpClient;
-            _hardcoverApiService = hardcoverApiService;
             _ollamaUrl = "http://localhost:11434"; // Default Ollama URL
             
             // Set a shorter timeout for Ollama requests (15 seconds)
             _httpClient.Timeout = TimeSpan.FromSeconds(15);
         }
 
-        public async Task<List<string>> GetRecommendationsAsync(int bookId)
+        /// <summary>
+        /// Generates tone recommendations for a given book.
+        /// </summary>
+        /// <returns>A list of tones.</returns>
+        public Task<List<string>> GenerateBookToneRecommendationsAsync(int bookId)
         {
             _logger.LogInformation("Starting recommendation generation for book ID: {BookId}", bookId);
             
             try
             {
-                // TODO: Implement book lookup from database using bookId
+                // TODO: Implement book lookup from database using bookId. Pass in to the model the book title, author, genres, 
+                // and any book review data that book data api may have on that book.
                 // For now, return placeholder recommendations
-                _logger.LogWarning("GetRecommendationsAsync: Book lookup from database not yet implemented");
+                _logger.LogWarning("GenerateBookToneRecommendationsAsync: Book lookup from database not yet implemented");
                 
-                return new List<string> { "Realistic", "Optimistic", "Mysterious" };
+                return Task.FromResult(new List<string> { "Realistic", "Optimistic", "Mysterious" });
             }
             catch (Exception ex)
             {
@@ -42,59 +45,54 @@ namespace BookToneApi.Services
             }
         }
 
-        private async Task<List<string>> GenerateToneRecommendationsAsync(string bookTitle, string bookAuthor, List<string> genres)
+        private async Task<List<string>> GenerateBookToneRecommendationsAsync(string bookTitle, string bookAuthor, List<string> genres, 
+            string rawBookReview)
         {
-            _logger.LogInformation("GenerateToneRecommendationsAsync: Starting for '{BookTitle}' by {BookAuthor}", bookTitle, bookAuthor);
+            _logger.LogInformation("GenerateBookToneRecommendationsAsync: Starting for '{BookTitle}' by {BookAuthor}", bookTitle, bookAuthor);
             
             try
             {
-                // TODO: Comment out Hardcover API call for debugging Ollama
-                _logger.LogInformation("GenerateToneRecommendationsAsync: Hardcover API call commented out for debugging");
-                List<string> moodTags = new List<string>(); // Empty list for now
-                _logger.LogInformation("GenerateToneRecommendationsAsync: Using empty mood tags list for debugging");
-                
-                // Create prompt for Phi model with mood tags
-                _logger.LogInformation("GenerateToneRecommendationsAsync: Creating AI prompt");
-                string prompt = CreatePrompt(bookTitle, bookAuthor, genres, moodTags);
-                _logger.LogDebug("GenerateToneRecommendationsAsync: Created prompt: {Prompt}", prompt);
+                // Create prompt for Phi model
+                _logger.LogInformation("GenerateBookToneRecommendationsAsync: Creating AI prompt");
+                string prompt = CreatePrompt(bookTitle, bookAuthor, genres, rawBookReview);
+                _logger.LogDebug("GenerateBookToneRecommendationsAsync: Created prompt: {Prompt}", prompt);
                 
                 // Call Ollama API
-                _logger.LogInformation("GenerateToneRecommendationsAsync: Calling Ollama API");
+                _logger.LogInformation("GenerateBookToneRecommendationsAsync: Calling Ollama API");
                 string response = await CallOllamaAsync(prompt);
-                _logger.LogInformation("GenerateToneRecommendationsAsync: Received Ollama response: {Response}", response);
+                _logger.LogInformation("GenerateBookToneRecommendationsAsync: Received Ollama response: {Response}", response);
                 
                 if (!string.IsNullOrEmpty(response))
                 {
                     // Process the response to extract tones
-                    _logger.LogInformation("GenerateToneRecommendationsAsync: Processing Ollama response");
+                    _logger.LogInformation("GenerateBookToneRecommendationsAsync: Processing Ollama response");
                     List<string> tones = ProcessOllamaResponse(response);
-                    _logger.LogInformation("GenerateToneRecommendationsAsync: Extracted {ToneCount} tones: {Tones}", 
+                    _logger.LogInformation("GenerateBookToneRecommendationsAsync: Extracted {ToneCount} tones: {Tones}", 
                         tones.Count, string.Join(", ", tones));
                     
                     if (tones.Count > 0)
                     {
-                        _logger.LogInformation("GenerateToneRecommendationsAsync: Successfully generated tones");
+                        _logger.LogInformation("GenerateBookToneRecommendationsAsync: Successfully generated tones");
                         return tones;
                     }
                 }
                 
                 // Return empty list if Ollama fails or returns empty
-                _logger.LogWarning("GenerateToneRecommendationsAsync: Ollama response was empty or invalid. Returning empty tone list.");
+                _logger.LogWarning("GenerateBookToneRecommendationsAsync: Ollama response was empty or invalid. Returning empty tone list.");
                 return new List<string>();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "GenerateToneRecommendationsAsync: Error. Returning empty tone list.");
+                _logger.LogError(ex, "GenerateBookToneRecommendationsAsync: Error. Returning empty tone list.");
                 return new List<string>();
             }
         }
 
-        private string CreatePrompt(string bookTitle, string bookAuthor, List<string> genres, List<string> moodTags)
+        private string CreatePrompt(string bookTitle, string bookAuthor, List<string> genres, string rawBookReview)
         {
             string genreList = string.Join(", ", genres);
-            string moodTagsList = moodTags.Count > 0 ? string.Join(", ", moodTags) : "none available";
-            
-            return $@"Based on the book '{bookTitle}' by {bookAuthor} in the genres: {genreList}, and with mood tags from readers: {moodTagsList}, what would be the most appropriate tones for this book?";
+            string bookReviewString = $" Review: {rawBookReview}";
+            return $@"Based on the book '{bookTitle}' by {bookAuthor} in the genres: {genreList}, {(String.IsNullOrEmpty(rawBookReview) ? "" : $" and with the following book review")}, what would be the most appropriate tones for this book?{bookReviewString}";
         }
 
         private async Task<string> CallOllamaAsync(string prompt)
@@ -106,15 +104,15 @@ namespace BookToneApi.Services
                     model = "booktone-phi", // Using custom model with built-in system prompt
                     prompt = prompt, // No need for system prompt in request since it's built into the model
                     stream = false,
-                    // Nucleus sampling - only consider words that make up 90% of probability mass
+                    // Nucleus sampling - only consider words that make up the top 90% of probability mass
                     top_p = 0.9,
                     // Temperature - lower for more focused, consistent responses
                     temperature = 0.3,
                     // Repeat penalty - prevents repetitive responses
-                    repeat_penalty = 1.1,
+                    repeat_penalty = 1.2,
                     // Stop sequences - stop at JSON end and newlines for cleaner responses
                     stop = new[] { "]", "\n", "User:", "Assistant:", "System:" },
-                    // Maximum tokens to generate
+                    // Maximum tokens to generate; cut off AI after this many tokens
                     num_predict = 50
                 };
 

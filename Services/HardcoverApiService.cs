@@ -3,6 +3,7 @@ using System.Net.Http;
 
 namespace BookToneApi.Services
 {
+    // NOTE: THIS IS NOT USED IN THE CURRENT IMPLEMENTATION
     public class HardcoverApiService : IHardcoverApiService
     {
         private readonly HttpClient _httpClient;

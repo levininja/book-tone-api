@@ -18,9 +18,6 @@ builder.Services.AddDbContext<BookToneDbContext>(options =>
 // Add HttpClient for API calls
 builder.Services.AddHttpClient();
 
-// Add Hardcover API service
-builder.Services.AddScoped<IHardcoverApiService, HardcoverApiService>();
-
 // Add recommender service
 builder.Services.AddScoped<IRecommenderService, RecommenderService>();
 
@@ -30,9 +27,10 @@ builder.Services.AddScoped<IBookDataService, BookDataService>();
 // Add resource monitoring service
 builder.Services.AddScoped<IResourceMonitorService, ResourceMonitorService>();
 
-// Add batch processing service
-builder.Services.AddScoped<IBatchProcessingService, BatchProcessingService>();
-builder.Services.AddHostedService<BatchProcessingService>();
+// Add batch processing service as singleton (required for hosted services)
+builder.Services.AddSingleton<BatchProcessingService>();
+builder.Services.AddSingleton<IBatchProcessingService>(sp => sp.GetRequiredService<BatchProcessingService>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<BatchProcessingService>());
 
 WebApplication app = builder.Build();
 

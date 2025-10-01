@@ -134,35 +134,6 @@ namespace BookToneApi.Migrations
                     b.ToTable("BatchProcessingLogs");
                 });
 
-            modelBuilder.Entity("BookToneApi.Models.BookToneRecommendation", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("BookId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<int>("Feedback")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Tone")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("BookToneRecommendations");
-                });
-
             modelBuilder.Entity("BookToneApi.Models.ErrorLog", b =>
                 {
                     b.Property<int>("Id")

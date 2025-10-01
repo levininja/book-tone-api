@@ -4,7 +4,8 @@ using BookToneApi.Data;
 using BookToneApi.Models;
 using BookToneApi.Dtos;
 using BookToneApi.Services;
-using BookDataApi.Dtos;
+using BookDataApi.Shared.Models;
+using BookDataApi.Shared.Dtos;
 
 namespace BookToneApi.Controllers
 {
@@ -123,7 +124,7 @@ namespace BookToneApi.Controllers
             }
         }
 
-        // GET: api/BookToneRecommendations/5
+        // GET: api/BookToneRecommendations/{id}
         [HttpGet("{id}")]
         public async Task<ActionResult<BookToneRecommendationsResponseDto>> GetBookToneRecommendation(int id)
         {
@@ -149,7 +150,7 @@ namespace BookToneApi.Controllers
             return Ok(response);
         }
 
-        // PUT: api/BookToneRecommendations/5
+        // PUT: api/BookToneRecommendations/{id}
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateBookToneRecommendation(int id, [FromBody] int feedback)
         {
